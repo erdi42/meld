@@ -77,7 +77,9 @@ class MeldApp(Gtk.Application):
         clip = Gtk.Clipboard.get_default(Gdk.Display.get_default())
         clip.set_can_store(None)
 
-        self.new_window()
+        window = self.new_window()
+        window.present()
+        window.maximize()
 
     def do_activate(self):
         self.get_active_window().present()
