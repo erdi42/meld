@@ -217,6 +217,7 @@ class VcView(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
 
         new_boolean = GLib.Variant.new_boolean
         stateful_actions = (
+            ('vc-filter', None, GLib.Variant.new_boolean(False)),
             ('vc-flatten', self.action_filter_state_change,
                 new_boolean('flatten' in self.props.status_filters)),
             ('vc-status-modified', self.action_filter_state_change,
@@ -230,7 +231,8 @@ class VcView(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
         )
         for (name, callback, state) in stateful_actions:
             action = Gio.SimpleAction.new_stateful(name, None, state)
-            action.connect('change-state', callback)
+            if callback:
+                action.connect('change-state', callback)
             self.view_action_group.add_action(action)
 
         builder = Gtk.Builder.new_from_resource(
@@ -377,7 +379,6 @@ class VcView(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
         self.model.clear()
         self.filelabel.props.gfile = Gio.File.new_for_path(location)
         it = self.model.add_entries(None, [location])
-        self.treeview.grab_focus()
         self.treeview.get_selection().select_iter(it)
         self.model.set_path_state(it, 0, tree.STATE_NORMAL, isdir=1)
         self.recompute_label()

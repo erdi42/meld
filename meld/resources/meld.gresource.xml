@@ -3,8 +3,8 @@
   <gresource prefix="/org/gnome/meld/icons">
     <file>scalable/apps/org.gnome.Meld.svg</file>
     <file>scalable/apps/org.gnome.MeldDevel.svg</file>
-    <file preprocess="xml-stripblanks">icons/vc-pull-symbolic.svg</file>
-    <file preprocess="xml-stripblanks">icons/vc-push-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="scalable/actions/vc-pull-symbolic.svg">icons/vc-pull-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="scalable/actions/vc-push-symbolic.svg">icons/vc-push-symbolic.svg</file>
   </gresource>
   <gresource prefix="/org/gnome/meld">
     <file>gtk/help-overlay.ui</file>
@@ -28,6 +28,9 @@
     <file>ui/filediff.ui</file>
     <file>ui/filter-list.ui</file>
     <file>ui/findbar.ui</file>
+    <file>ui/imagediff-actions.ui</file>
+    <file>ui/imagediff-menus.ui</file>
+    <file>ui/imagediff.ui</file>
     <file>ui/language-selector.ui</file>
     <file>ui/new-diff-tab.ui</file>
     <file>ui/notebook-label.ui</file>

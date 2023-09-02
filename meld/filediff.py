@@ -365,6 +365,15 @@ class FileDiff(Gtk.VBox, MeldDoc):
             action.connect('activate', callback)
             self.view_action_group.add_action(action)
 
+        state_actions = (
+            ("text-filter", None, GLib.Variant.new_boolean(False)),
+        )
+        for (name, callback, state) in state_actions:
+            action = Gio.SimpleAction.new_stateful(name, None, state)
+            if callback:
+                action.connect("change-state", callback)
+            self.view_action_group.add_action(action)
+
         builder = Gtk.Builder.new_from_resource(
             '/org/gnome/meld/ui/filediff-menus.ui')
         self.popup_menu_model = builder.get_object('filediff-context-menu')
@@ -417,6 +426,11 @@ class FileDiff(Gtk.VBox, MeldDoc):
             t.connect("focus-out-event", self.on_current_diff_changed)
             t.connect(
                 "drag_data_received", self.on_textview_drag_data_received)
+
+        for label in self.filelabel:
+            label.connect(
+                "drag_data_received", self.on_textview_drag_data_received
+            )
 
         # Bind all overwrite properties together, so that toggling
         # overwrite mode is per-FileDiff.
@@ -701,8 +715,8 @@ class FileDiff(Gtk.VBox, MeldDoc):
                 pull_left = pane == 2 and editable and not is_delete
                 pull_right = pane == 0 and editable and not is_delete
                 delete = editable and not is_insert
-                copy_left = editable_left and not is_insert or is_delete
-                copy_right = editable_right and not is_insert or is_delete
+                copy_left = editable_left and not (is_insert or is_delete)
+                copy_right = editable_right and not (is_insert or is_delete)
             elif pane == 1:
                 chunk0 = self.linediffer.get_chunk(chunk_id, 1, 0)
                 chunk2 = None
@@ -740,6 +754,9 @@ class FileDiff(Gtk.VBox, MeldDoc):
         self.set_action_enabled('previous-pane', pane > 0)
         self.set_action_enabled('next-pane', pane < self.num_panes - 1)
         self.set_action_enabled('swap-2-panes', self.num_panes == 2)
+
+        self.update_text_actions_sensitivity()
+
         # FIXME: don't queue_draw() on everything... just on what changed
         self.queue_draw()
 
@@ -1113,7 +1130,13 @@ class FileDiff(Gtk.VBox, MeldDoc):
                 if self.check_unsaved_changes():
                     self.set_files(gfiles)
             elif len(gfiles) == 1:
-                pane = self.textview.index(widget)
+                if widget in self.textview:
+                    pane = self.textview.index(widget)
+                elif widget in self.filelabel:
+                    pane = self.filelabel.index(widget)
+                else:
+                    log.error("Unrecognised drag destination")
+                    return True
                 buffer = self.textbuffer[pane]
                 if self.check_unsaved_changes([buffer]):
                     self.set_file(pane, gfiles[0])
@@ -1739,9 +1762,13 @@ class FileDiff(Gtk.VBox, MeldDoc):
         self._connect_buffer_handlers()
         self._set_merge_action_sensitivity()
 
-        # Changing textview sensitivity destroys focus; we reestablish it here
+        # Changing textview sensitivity removes focus and so triggers
+        # our focus-out sensitivity handling. We manually trigger the
+        # focus-in here to restablish the previous state.
         if self.cursor.pane is not None:
-            self.textview[self.cursor.pane].grab_focus()
+            self.on_textview_focus_in_event(
+                self.textview[self.cursor.pane], None
+            )
 
         langs = [LanguageManager.get_language_from_file(buf.data.gfile)
                  for buf in self.textbuffer[:self.num_panes]]

@@ -514,6 +514,7 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             self.view_action_group.add_action(action)
 
         actions = (
+            ("folder-filter", None, GLib.Variant.new_boolean(False)),
             ("folder-status-same", self.action_filter_state_change,
                 GLib.Variant.new_boolean(False)),
             ("folder-status-new", self.action_filter_state_change,
@@ -527,7 +528,8 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
         )
         for (name, callback, state) in actions:
             action = Gio.SimpleAction.new_stateful(name, None, state)
-            action.connect('change-state', callback)
+            if callback:
+                action.connect("change-state", callback)
             self.view_action_group.add_action(action)
 
         builder = Gtk.Builder.new_from_resource(
@@ -871,7 +873,7 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
         for m in self.msgarea_mgr:
             m.clear()
         child = self.model.add_entries(None, locations)
-        self.treeview0.grab_focus()
+        self.on_treeview_focus_in_event(self.treeview0, None)
         self._update_item_state(child)
         self.recompute_label()
         self.scheduler.remove_all_tasks()
@@ -1448,7 +1450,8 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
     @Gtk.Template.Callback()
     def on_treeview_row_activated(self, view, path, column):
         pane = self.treeview.index(view)
-        rows = self.model.value_paths(self.model.get_iter(path))
+        it = self.model.get_iter(path)
+        rows = self.model.value_paths(it)
         # Click a file: compare; click a directory: expand; click a missing
         # entry: check the next neighbouring entry
         pane_ordering = ((0, 1, 2), (1, 2, 0), (2, 1, 0))
@@ -1459,11 +1462,7 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
         if not rows[pane]:
             return
         if os.path.isfile(rows[pane]):
-            diff_gfiles = [
-                Gio.File.new_for_path(r) if os.path.isfile(r) else None
-                for r in rows
-            ]
-            self.create_diff_signal.emit(diff_gfiles, {})
+            self.run_diff_from_iter(it)
         elif os.path.isdir(rows[pane]):
             if view.row_expanded(path):
                 view.collapse_row(path)
@@ -1491,9 +1490,11 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
         tree.emit("cursor-changed")
 
     def run_diff_from_iter(self, it):
-        row_paths = self.model.value_paths(it)
-        gfiles = [Gio.File.new_for_path(p)
-                  for p in row_paths if os.path.exists(p)]
+        rows = self.model.value_paths(it)
+        gfiles = [
+            Gio.File.new_for_path(r) if os.path.isfile(r) else None
+            for r in rows
+        ]
         self.create_diff_signal.emit(gfiles, {})
 
     def action_diff(self, *args):
